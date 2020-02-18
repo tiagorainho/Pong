@@ -14,6 +14,7 @@ GEN = 0
 TIME_BETWEEN_KEYS = 0.2
 START_COUNTER_KEYS = 0.0
 STAT_FONT = pygame.font.SysFont("comicsans", 50)
+MAX_FITNESS = 0
 
 def waitToStart():
     time.sleep(0.5)  
@@ -49,6 +50,7 @@ def main(genomes, config):
     global GEN
     global START_COUNTER_KEYS
     global FPS
+    global MAX_FITNESS
 
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     clock = pygame.time.Clock()
@@ -66,7 +68,7 @@ def main(genomes, config):
     rackets1 = []
     rackets2 = []
 
-    max_fitness = 0
+    colisions = []
 
     for _,g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
@@ -75,26 +77,28 @@ def main(genomes, config):
         rackets2.append(Racket(WIN_WIDTH - 20, WIN_HEIGHT/2))
         g.fitness = 0
         ge.append(g)
+        colisions.append(0)
 
     while run:
         clock.tick(FPS)
+        last_direction = ball.get_dx()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
                 pygame.quit()
                 quit()
         
-        if not len(rackets1) > 0:
+        if not len(ge) > 0:
             run = False
             break
         for x, racket1 in enumerate(rackets1):
-
-            print(str(x) + ": " + str(ge[x].fitness))
-
-        #for x in range(len(rackets1)):
+            
             ge[x].fitness += 0.1
 
-            output = nets[x].activate((rackets1[x].y, abs(rackets1[x].x - ball.x), abs(ball.y)))
+            #output = nets[x].activate((rackets1[x].y, abs(rackets1[x].x - ball.x), abs(ball.y)))
+
+
+            output = nets[x].activate((rackets1[x].x, rackets1[x].y, rackets2[x].x, rackets2[x].y, ball.x, ball.y))
 
             if output[0] < 0.5:
                 rackets1[x].moveDown()
@@ -105,22 +109,40 @@ def main(genomes, config):
             if output[3] >= 0.5:
                 rackets2[x].moveUp()
             
-
             if rackets1[x].collide(ball) or rackets2[x].collide(ball):
-                score += 1
                 ge[x].fitness += 5
-                ball.change_direction()
+                colisions[x] = 1
+            else:
+                colisions[x] = 0
 
-            if ge[x].fitness > max_fitness:
-                max_fitness = ge[x].fitness
+            if ge[x].fitness > MAX_FITNESS:
+                MAX_FITNESS = ge[x].fitness
 
             if ball.x < rackets1[x].x or ball.x > rackets2[x].x:    # lost
-                ge[x].fitness -= 1
-                rackets1.pop(x)
-                rackets2.pop(x)
-                nets.pop(x)
-                ge.pop(x)
-            
+                    ge[x].fitness -= 1
+                    rackets1.pop(x)
+                    rackets2.pop(x)
+                    nets.pop(x)
+                    ge.pop(x)
+                    colisions.pop(x)
+
+        counter = 0
+        delete = []
+        for c in colisions:
+            if c == 1:
+                score += 1
+                ball.change_direction()
+                for i, c in enumerate(colisions):
+                    if i != 1:
+                        ge[counter].fitness -= 1
+                        rackets1.pop(counter)
+                        rackets2.pop(counter)
+                        nets.pop(counter)
+                        ge.pop(counter)
+                        colisions.pop(counter)
+                    counter += 1
+                break
+
         pressed = pygame.key.get_pressed()
         if time.time() - START_COUNTER_KEYS > TIME_BETWEEN_KEYS:
             START_COUNTER_KEYS = time.time()
@@ -137,7 +159,7 @@ def main(genomes, config):
                 else:
                     print("Min velocity reached")
         ball.move()
-        draw_window(win, rackets1, rackets2, ball, score, len(rackets1), GEN, max_fitness)
+        draw_window(win, rackets1, rackets2, ball, score, len(rackets1), GEN, MAX_FITNESS)
 
     GEN += 1
 

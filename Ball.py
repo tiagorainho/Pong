@@ -17,6 +17,7 @@ class Ball:
         self.direction = 0
         self.max_height = 0
         self.max_width = 0
+        self.middle_x = x
 
     def get_dx(self):
         return self.x - self.last_position[0]
@@ -53,9 +54,6 @@ class Ball:
             self.y -= 5
         else:
             self.y += random.randrange(-5, 5)
-
-        #self.x += math.cos(random.randrange(-30, 30))
-        #self.y += self.get_dy_with_velocity(self.get_dx())
         self.last_position = temp
 
     def move(self):
@@ -85,6 +83,16 @@ class Ball:
         if self.y >= self.max_height or self.y <= 0:
             return True
         return False
+
+    def racket_successful(self, racket):
+        if racket.x < self.middle_x:
+            if self.x < racket.x:
+                return False
+        else:
+            if self.x > racket.x:
+                return False
+        return True
+
 
     def hasWinner(self):
         if self.x >= self.max_width or self.x <= 0:
