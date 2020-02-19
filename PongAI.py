@@ -24,9 +24,8 @@ def get_racket(x):
     racket.set_max_height(WIN_HEIGHT)
     return racket
 
-def draw_window(win, rackets1, rackets2, ball, score, alive, gen, max_fitness):
+def draw_window(win, rackets1, rackets2, balls, score, alive, gen, max_fitness):
     win.blit(BACKGROUND_IMG, (0, 0))
-    ball.draw(win)
 
     text = STAT_FONT.render("Score: " + str(score), 1, (0,0,0))
     win.blit(text, (WIN_WIDTH - 50 - text.get_width(), 10))
@@ -44,6 +43,7 @@ def draw_window(win, rackets1, rackets2, ball, score, alive, gen, max_fitness):
     for x in range(len(rackets1)):
         rackets1[x].draw(win)
         rackets2[x].draw(win)
+        balls[x].draw(win)
     pygame.display.update()      
 
 def main(genomes, config):
@@ -58,11 +58,7 @@ def main(genomes, config):
     score = 0
     run = True
 
-    ball = Ball(WIN_WIDTH/2, WIN_HEIGHT/2)
-    ball.set_max_height(WIN_HEIGHT)
-    ball.set_max_width(WIN_WIDTH)
-    ball.prepare()
-
+    balls = []
     nets = []
     ge = []
     rackets1 = []
@@ -77,11 +73,15 @@ def main(genomes, config):
         rackets2.append(Racket(WIN_WIDTH - 20, WIN_HEIGHT/2))
         g.fitness = 0
         ge.append(g)
+        ball = Ball(WIN_WIDTH/2, WIN_HEIGHT/2)
+        ball.set_max_height(WIN_HEIGHT)
+        ball.set_max_width(WIN_WIDTH)
+        ball.prepare()
+        balls.append(ball)
         colisions.append(0)
 
     while run:
         clock.tick(FPS)
-        last_direction = ball.get_dx()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -97,8 +97,16 @@ def main(genomes, config):
 
             #output = nets[x].activate((rackets1[x].y, abs(rackets1[x].x - ball.x), abs(ball.y)))
 
+            #output = nets[x].activate((rackets1[x].x, rackets1[x].y, rackets2[x].x, rackets2[x].y, balls[x].x, balls[x].y))
 
-            output = nets[x].activate((rackets1[x].x, rackets1[x].y, rackets2[x].x, rackets2[x].y, ball.x, ball.y))
+            #
+            output = nets[x].activate((rackets1[x].y, rackets2[x].y, abs(rackets1[x].x - balls[x].x), abs(rackets1[x].y - balls[x].y), abs(rackets2[x].x - balls[x].x), abs(rackets2[x].y - balls[x].y)))
+            '''
+            if output[0] < 0.5:
+                rackets1[x].moveDown()
+            if output[1] >= 0.5:
+                rackets1[x].moveUp()
+            '''
 
             if output[0] < 0.5:
                 rackets1[x].moveDown()
@@ -109,7 +117,8 @@ def main(genomes, config):
             if output[3] >= 0.5:
                 rackets2[x].moveUp()
             
-            if rackets1[x].collide(ball) or rackets2[x].collide(ball):
+            if rackets1[x].collide(balls[x]) or rackets2[x].collide(balls[x]):
+                balls[x].change_direction()
                 ge[x].fitness += 5
                 colisions[x] = 1
             else:
@@ -118,29 +127,19 @@ def main(genomes, config):
             if ge[x].fitness > MAX_FITNESS:
                 MAX_FITNESS = ge[x].fitness
 
-            if ball.x < rackets1[x].x or ball.x > rackets2[x].x:    # lost
-                    ge[x].fitness -= 1
+            balls[x].move()
+
+            if balls[x].x < rackets1[x].x or balls[x].x > rackets2[x].x:    # lost
                     rackets1.pop(x)
                     rackets2.pop(x)
                     nets.pop(x)
                     ge.pop(x)
                     colisions.pop(x)
+                    balls.pop(x)            
 
-        counter = 0
-        delete = []
         for c in colisions:
             if c == 1:
                 score += 1
-                ball.change_direction()
-                for i, c in enumerate(colisions):
-                    if i != 1:
-                        ge[counter].fitness -= 1
-                        rackets1.pop(counter)
-                        rackets2.pop(counter)
-                        nets.pop(counter)
-                        ge.pop(counter)
-                        colisions.pop(counter)
-                    counter += 1
                 break
 
         pressed = pygame.key.get_pressed()
@@ -158,8 +157,8 @@ def main(genomes, config):
                     print("Current fps: " + str(FPS))
                 else:
                     print("Min velocity reached")
-        ball.move()
-        draw_window(win, rackets1, rackets2, ball, score, len(rackets1), GEN, MAX_FITNESS)
+
+        draw_window(win, rackets1, rackets2, balls, score, len(rackets1), GEN, MAX_FITNESS)
 
     GEN += 1
 

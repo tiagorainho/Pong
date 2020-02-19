@@ -10,7 +10,7 @@ WIN_WIDTH = BACKGROUND_IMG.get_width()
 FPS = 30
 
 def get_racket(x):
-    racket = Racket(x)
+    racket = Racket(x, WIN_HEIGHT/2)
     racket.set_max_height(WIN_HEIGHT)
     return racket
 
